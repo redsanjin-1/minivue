@@ -178,12 +178,103 @@ function createReactiveObject(target) {
 function reactive(target) {
   return createReactiveObject(target);
 }
+function toReactive(value) {
+  return isObject(value) ? reactive(value) : value;
+}
+
+// packages/reactivity/src/ref.ts
+function ref(value) {
+  return createRef(value);
+}
+function createRef(value) {
+  return new RefImpl(value);
+}
+var RefImpl = class {
+  // 用于收集对应的 effect
+  constructor(rawValue) {
+    this.rawValue = rawValue;
+    this.__v_isRef = true;
+    this._value = toReactive(rawValue);
+  }
+  get value() {
+    trackRefValue(this);
+    return this._value;
+  }
+  set value(newValue) {
+    if (newValue !== this.rawValue) {
+      this.rawValue = newValue;
+      this._value = newValue;
+      triggerRefValue(this);
+    }
+  }
+};
+function trackRefValue(ref2) {
+  if (activeEffect) {
+    trackEffect(
+      activeEffect,
+      ref2.dep = createDep(() => ref2.dep = void 0, "undefined")
+    );
+  }
+}
+function triggerRefValue(ref2) {
+  let dep = ref2.dep;
+  if (dep) {
+    triggerEffects(dep);
+  }
+}
+function toRef(object, key) {
+  return new ObjectRefImpl(object, key);
+}
+var ObjectRefImpl = class {
+  // 增加 ref 标识
+  constructor(_object, _key) {
+    this._object = _object;
+    this._key = _key;
+    this.__v_isRef = true;
+  }
+  get value() {
+    return this._object[this._key];
+  }
+  set value(newValue) {
+    this._object[this._key] = newValue;
+  }
+};
+function toRefs(object) {
+  const res = {};
+  for (let key in object) {
+    res[key] = toRef(object, key);
+  }
+  return res;
+}
+function proxyRefs(objectWithRef) {
+  return new Proxy(objectWithRef, {
+    get(target, key, receiver) {
+      let r = Reflect.get(target, key, receiver);
+      return r.__v_isRef ? r.value : r;
+    },
+    set(target, key, value, receiver) {
+      const oldValue = target[key];
+      if (oldValue.__v_isRef) {
+        oldValue.value = value;
+        return true;
+      } else {
+        return Reflect.set(target, key, value, receiver);
+      }
+    }
+  });
+}
 export {
   ReactiveFlags,
   activeEffect,
+  createRef,
   effect,
+  proxyRefs,
   reactive,
   reactiveMap,
+  ref,
+  toReactive,
+  toRef,
+  toRefs,
   trackEffect,
   triggerEffects
 };
