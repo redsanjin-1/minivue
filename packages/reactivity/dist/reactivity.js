@@ -2,12 +2,22 @@
 function isObject(value) {
   return typeof value === "object" && value !== null;
 }
+function isFunction(value) {
+  return typeof value === "function";
+}
 
 // packages/reactivity/src/constants.ts
 var ReactiveFlags = /* @__PURE__ */ ((ReactiveFlags2) => {
   ReactiveFlags2["IS_REACTIVE"] = "__v_isReactive";
+  ReactiveFlags2["IS_REF"] = "__v_isRef";
+  ReactiveFlags2["IS_COMPUTED"] = "__v_isComputed";
   return ReactiveFlags2;
 })(ReactiveFlags || {});
+var DirtyLevels = /* @__PURE__ */ ((DirtyLevels2) => {
+  DirtyLevels2[DirtyLevels2["Dirty"] = 4] = "Dirty";
+  DirtyLevels2[DirtyLevels2["NoDirty"] = 0] = "NoDirty";
+  return DirtyLevels2;
+})(DirtyLevels || {});
 
 // packages/reactivity/src/effect.ts
 var activeEffect;
@@ -41,11 +51,19 @@ var ReactiveEffect = class {
     // 是否正在更新
     this._depsLength = 0;
     // 依赖项个数
+    this._dirtyLevel = 4 /* Dirty */;
     this.deps = [];
     // 依赖项
     this.active = true;
   }
+  get dirty() {
+    return this._dirtyLevel === 4 /* Dirty */;
+  }
+  set dirty(v) {
+    this._dirtyLevel = v ? 4 /* Dirty */ : 0 /* NoDirty */;
+  }
   run() {
+    this._dirtyLevel = 0 /* NoDirty */;
     if (!this.active) {
       return this.fn();
     }
@@ -93,6 +111,9 @@ function trackEffect(effect2, dep) {
 }
 function triggerEffects(dep) {
   for (const effect2 of dep.keys()) {
+    if (effect2._dirtyLevel < 4 /* Dirty */) {
+      effect2._dirtyLevel = 4 /* Dirty */;
+    }
     if (!effect2._running) {
       if (effect2.scheduler) {
         effect2.scheduler();
@@ -263,9 +284,50 @@ function proxyRefs(objectWithRef) {
     }
   });
 }
+
+// packages/reactivity/src/computed.ts
+var ComputedRefImpl = class {
+  constructor(getter, setter) {
+    this.getter = getter;
+    this.setter = setter;
+    this.effect = new ReactiveEffect(
+      () => getter(this._value),
+      () => {
+        triggerRefValue(this);
+      }
+    );
+  }
+  get value() {
+    if (this.effect.dirty) {
+      this._value = this.effect.run();
+      trackRefValue(this);
+    }
+    return this._value;
+  }
+  set value(value) {
+    this.setter(value);
+  }
+};
+function computed(getterOrOptions) {
+  const onlyGetter = isFunction(getterOrOptions);
+  let getter;
+  let setter;
+  if (onlyGetter) {
+    getter = getterOrOptions;
+    setter = () => {
+    };
+  } else {
+    getter = getterOrOptions.get;
+    setter = getterOrOptions.set;
+  }
+  return new ComputedRefImpl(getter, setter);
+}
 export {
+  DirtyLevels,
+  ReactiveEffect,
   ReactiveFlags,
   activeEffect,
+  computed,
   createRef,
   effect,
   proxyRefs,
@@ -276,6 +338,8 @@ export {
   toRef,
   toRefs,
   trackEffect,
-  triggerEffects
+  trackRefValue,
+  triggerEffects,
+  triggerRefValue
 };
 //# sourceMappingURL=reactivity.js.map

@@ -12,22 +12,31 @@
 
   <script type="module">
     // import { reactive, effect } from '/node_modules/@vue/reactivity/dist/reactivity.esm-browser.js'
-    import { reactive, effect, toRef, toRefs, proxyRefs } from './reactivity.js'
+    import { reactive, effect, ref, computed } from './reactivity.js'
 
-    const state = reactive({ name: 'sanjin', age: 30 })
-    // const name = toRef(state, 'name')
-    // const age = toRef(state, 'age')
-    // console.log(name.value, age.value);
+    const firstName = ref('red')
+    const lastName = ref('sanjin')
 
-    // const { name, age } = toRefs(state) 
-    // console.log(name.value, age.value);
+    const fullName = computed(() => {
+      console.log('runner');
 
-    let proxy = proxyRefs({ ...toRefs(state), a: 100 })
-    proxy.age = 100
-    proxy.a = 200
-    effect(() => {
-      console.log(proxy.name, proxy.age, proxy.a);
+      return firstName.value + lastName.value
     })
+    // const fullName = computed({
+    //   get(oldValue) {
+    //     console.log('runner', oldValue);
+    //     return firstName.value + lastName.value
+    //   },
+    //   set(v) {
+    //     console.log(v);
+    //   }
+    // })
+    console.log(fullName.value);
+
+    setTimeout(() => {
+      lastName.value = '3jin'
+      console.log(fullName.value);
+    }, 2000)
   </script>
 </body>
 

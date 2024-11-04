@@ -1,3 +1,5 @@
+import { DirtyLevels } from './constants'
+
 export let activeEffect
 
 function preCleanEffect(effect) {
@@ -21,16 +23,25 @@ function cleanDepEffect(dep, effect) {
   }
 }
 
-class ReactiveEffect {
+export class ReactiveEffect {
   _trackId = 0 // 用于记录当前 effect 执行了几次
   _running = 0 // 是否正在更新
   _depsLength = 0 // 依赖项个数
+  _dirtyLevel = DirtyLevels.Dirty
   deps = [] // 依赖项
 
   public active = true // 创建的 effect 是响应式的
   // fn 中依赖的数据发生变化后，需要重新调用 run()
   constructor(public fn, public scheduler) {}
+  public get dirty() {
+    return this._dirtyLevel === DirtyLevels.Dirty
+  }
+  public set dirty(v) {
+    this._dirtyLevel = v ? DirtyLevels.Dirty : DirtyLevels.NoDirty
+  }
   run() {
+    // 每次运行后 effect 变为 noDirty
+    this._dirtyLevel = DirtyLevels.NoDirty
     if (!this.active) {
       return this.fn()
     }
@@ -91,6 +102,11 @@ export function trackEffect(effect, dep) {
 }
 export function triggerEffects(dep) {
   for (const effect of dep.keys()) {
+    // 当前这个值是不脏的，但是触发更新需要将值变为脏值
+    if (effect._dirtyLevel < DirtyLevels.Dirty) {
+      effect._dirtyLevel = DirtyLevels.Dirty
+    }
+
     if (!effect._running) {
       if (effect.scheduler) {
         effect.scheduler()
