@@ -12,31 +12,30 @@
 
   <script type="module">
     // import { reactive, effect } from '/node_modules/@vue/reactivity/dist/reactivity.esm-browser.js'
-    import { reactive, effect, ref, computed } from './reactivity.js'
+    import { reactive, effect, ref, computed, watch, watchEffect } from './reactivity.js'
 
-    const firstName = ref('red')
-    const lastName = ref('sanjin')
-
-    const fullName = computed(() => {
-      console.log('runner');
-
-      return firstName.value + lastName.value
+    const state = reactive({
+      name: 'sanjin',
+      age: 30,
+      address: {
+        n: 1
+      }
     })
-    // const fullName = computed({
-    //   get(oldValue) {
-    //     console.log('runner', oldValue);
-    //     return firstName.value + lastName.value
-    //   },
-    //   set(v) {
-    //     console.log(v);
-    //   }
+
+    // const unwatch = watch(state, function (oldValue, newValue) {
+    //   console.log('watch', oldValue, newValue);
+    // }, {
+    //   deep: true,
+    //   immediate: true
     // })
-    console.log(fullName.value);
+    // unwatch()
+    watchEffect(() => {
+      console.log('watchEffect', state.name, state.age);
+    })
 
     setTimeout(() => {
-      lastName.value = '3jin'
-      console.log(fullName.value);
-    }, 2000)
+      state.address.n = '3jin'
+    }, 2000);
   </script>
 </body>
 
